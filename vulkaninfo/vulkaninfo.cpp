@@ -659,15 +659,18 @@ void print_usage(const char *argv0) {
     std::cout << "USAGE: " << argv0 << " [options]\n\n";
     std::cout << "OPTIONS:\n";
     std::cout << "-h, --help            Print this help.\n";
-    std::cout << "--html                Produce an html version of vulkaninfo output, saved as\n";
-    std::cout << "                      \"vulkaninfo.html\" in the directory in which the command is\n";
-    std::cout << "                      run.\n";
-    std::cout << "-j, --json            Produce a json version of vulkaninfo to standard output of the\n";
-    std::cout << "                      first gpu in the system conforming to the DevSim schema.\n";
+    std::cout << "--html                Produces an html version of vulkaninfo output.\n";
+    std::cout << "-j, --json            Produces a json version of vulkaninfo output of the first gpu in\n";
+    std::cout << "                      the system conforming to the DevSim schema.\n";
     std::cout << "--json=<gpu-number>   For a multi-gpu system, a single gpu can be targetted by\n";
-    std::cout << "                      specifying the gpu-number associated with the gpu of \n";
+    std::cout << "                      specifying the gpu-number associated with the gpu of\n";
     std::cout << "                      interest. This number can be determined by running\n";
     std::cout << "                      vulkaninfo without any options specified.\n";
+    std::cout << "--dest=<filename>     Sets the output to a file in the current directory. The filename\n";
+    std::cout << "                      will be the given string using the extension of the output type,\n";
+    std::cout << "                      \".txt\" for text, \".html\" for html, and \".json\" for json.\n";
+    std::cout << "--text                Sets the output format to human readable text. This is the default\n";
+    std::cout << "                      and will be used if neither --html nor --json are provided\n";
     std::cout << "--show-formats        Display the format properties of each physical device.\n";
     std::cout << "                      Note: This option does not affect html or json output;\n";
     std::cout << "                      they will always print format properties.\n\n";
@@ -679,18 +682,29 @@ int main(int argc, char **argv) {
 #endif
 
     uint32_t selected_gpu = 0;
+    bool use_file_output = false;
+    std::string output_filename;
+    OutputType std_out_type = OutputType::text;
 
     // Combinations of output: html only, html AND json, json only, human readable only
     for (int i = 1; i < argc; ++i) {
-        if (strncmp("--json", argv[i], 6) == 0 || strcmp(argv[i], "-j") == 0) {
+        if (strncmp("--dest", argv[i], 6) == 0) {
+            if (strlen(argv[i]) > 7 && strncmp("--dest=", argv[i], 7) == 0) {
+                output_filename = std::string(argv[i] + 7);
+                use_file_output = true;
+            }
+        } else if (strncmp("--json", argv[i], 6) == 0 || strcmp(argv[i], "-j") == 0) {
             if (strlen(argv[i]) > 7 && strncmp("--json=", argv[i], 7) == 0) {
                 selected_gpu = strtol(argv[i] + 7, nullptr, 10);
             }
-            human_readable_output = false;
             json_output = true;
+            std_out_type = OutputType::json;
         } else if (strcmp(argv[i], "--html") == 0) {
-            human_readable_output = false;
             html_output = true;
+            std_out_type = OutputType::html;
+        } else if (strcmp(argv[i], "--text") == 0) {
+            human_readable_output = true;
+            std_out_type = OutputType::text;
         } else if (strcmp(argv[i], "--show-formats") == 0) {
             show_formats = true;
         } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
@@ -737,18 +751,30 @@ int main(int argc, char **argv) {
 
     std::streambuf *buf;
     buf = std::cout.rdbuf();
-    std::ostream out(buf);
-    std::ofstream html_out;
+    std::ostream std_out(buf);
 
-    if (human_readable_output) {
-        printers.push_back(std::unique_ptr<Printer>(new Printer(OutputType::text, out, selected_gpu, instance.vk_version)));
-    }
-    if (html_output) {
-        html_out = std::ofstream("vulkaninfo.html");
-        printers.push_back(std::unique_ptr<Printer>(new Printer(OutputType::html, html_out, selected_gpu, instance.vk_version)));
-    }
-    if (json_output) {
-        printers.push_back(std::unique_ptr<Printer>(new Printer(OutputType::json, out, selected_gpu, instance.vk_version)));
+    std::ofstream text_file_out;
+    std::ofstream html_file_out;
+    std::ofstream json_file_out;
+
+    if (use_file_output) {
+        if (human_readable_output) {
+            text_file_out = std::ofstream(output_filename + ".txt");
+            printers.push_back(
+                std::unique_ptr<Printer>(new Printer(OutputType::text, text_file_out, selected_gpu, instance.vk_version)));
+        }
+        if (html_output) {
+            html_file_out = std::ofstream(output_filename + ".html");
+            printers.push_back(
+                std::unique_ptr<Printer>(new Printer(OutputType::html, html_file_out, selected_gpu, instance.vk_version)));
+        }
+        if (json_output) {
+            json_file_out = std::ofstream(output_filename + ".json");
+            printers.push_back(
+                std::unique_ptr<Printer>(new Printer(OutputType::json, json_file_out, selected_gpu, instance.vk_version)));
+        }
+    } else {
+        printers.push_back(std::unique_ptr<Printer>(new Printer(std_out_type, std_out, selected_gpu, instance.vk_version)));
     }
 
     for (auto &p : printers) {

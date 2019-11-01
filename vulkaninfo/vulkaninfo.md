@@ -51,15 +51,18 @@ USAGE: ./vulkaninfo [options]
 
 OPTIONS:
 -h, --help            Print this help.
---html                Produce an html version of vulkaninfo output, saved as
-                      "vulkaninfo.html" in the directory in which the command is
-                      run.
--j, --json            Produce a json version of vulkaninfo output to standard
-                      output.
+--html                Produces an html version of vulkaninfo output.
+-j, --json            Produces a json version of vulkaninfo output of the first gpu in
+                      the system conforming to the DevSim schema.
 --json=<gpu-number>   For a multi-gpu system, a single gpu can be targetted by
                       specifying the gpu-number associated with the gpu of
                       interest. This number can be determined by running
                       vulkaninfo without any options specified.
+--dest=<filename>     Sets the output to a file in the current directory. The filename
+                      will be the given string using the extension of the output type,
+                      \".txt\" for text, \".html\" for html, and \".json\" for json.
+--text                Sets the output format to human readable text. This is the default
+                      and will be used if neither --html nor --json are provided
 --show-formats        Display the format properties of each physical device.
                       Note: This option does not affect html or json output;
                       they will always print format properties.
